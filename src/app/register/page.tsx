@@ -3,38 +3,104 @@
 import { useState } from "react";
 import Link from "next/link";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
+  const router = useRouter();
+
   const [step, setStep] = useState(1);
   const [role, setRole] = useState("");
 
-  // form states
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
+  const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const roles = ["User", "Vendor", "Admin"];
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    try {
-      e.preventDefault();
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+  
+    const updatedForm = {
+      ...formData,
+      [name]: value,
+    };
+  
+    setFormData(updatedForm);
+ 
+  };
 
-      const formData = {
-        name,
-        email,
-        password,
+  const validate = (data:any) => {
+    const newErrors = {};
+  
+    if (!data.name.trim()) {
+      newErrors.name = "Name is required";
+    }
+  
+    if (!data.email) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(data.email)) {
+      newErrors.email = "Invalid email";
+    }
+  
+    if (!data.password) {
+      newErrors.password = "Password is required";
+    } else if (data.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+    }
+  
+    return newErrors;
+  };
+
+  const isFormValid = () => {
+    return (
+      formData.name.trim() !== "" &&
+      formData.email.trim() !== "" &&
+      formData.password.trim() !== "" &&
+      Object.keys(errors).length === 0
+    );
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const validationErrors = validate(formData);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setApiError("");
+
+      const dataToSend = {
+        ...formData,
         role,
       };
 
-      console.log("Submitted Data:", formData);
-      const result = await axios.post("/api/auth/register", formData);
-      
+      const result = await axios.post("/api/auth/register", dataToSend);
 
-    }
-    catch (error) {
+      console.log(result.data);
 
+      setFormData({ name: "", email: "", password: "" });
+      setErrors({});
+      router.push("/login");
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Something went wrong";
 
+      setApiError(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,10 +115,11 @@ export default function SignupPage() {
                 <button
                   key={r}
                   onClick={() => setRole(r)}
-                  className={`w-full py-2 rounded-lg border ${role === r
-                    ? "bg-blue-500 text-white"
-                    : "bg-white hover:bg-gray-100"
-                    }`}
+                  className={`w-full py-2 rounded-lg border ${
+                    role === r
+                      ? "bg-blue-500 text-white"
+                      : "bg-white hover:bg-gray-100"
+                  }`}
                 >
                   {r}
                 </button>
@@ -75,29 +142,48 @@ export default function SignupPage() {
               Create Account ({role})
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full border p-2 rounded-lg"
-              />
+            {apiError && (
+              <div className="mb-3 text-red-600 text-sm text-center bg-red-50 p-2 rounded-lg">
+                {apiError}
+              </div>
+            )}
 
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border p-2 rounded-lg"
-              />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="Full Name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full border p-2 rounded-lg"
+                />
+                {errors.name && (
+                  <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                )}
+              </div>
+
+              <div>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full border p-2 rounded-lg"
+                />
+                {errors.email && (
+                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                )}
+              </div>
 
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
+                  name="password"
                   placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={formData.password}
+                  onChange={handleChange}
                   className="w-full border p-2 rounded-lg pr-10"
                 />
                 <button
@@ -107,19 +193,26 @@ export default function SignupPage() {
                 >
                   {showPassword ? "🙈" : "👁️"}
                 </button>
+                {errors.password && (
+                  <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+                )}
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-blue-600 text-white py-2 rounded-lg"
+                disabled={loading || !isFormValid()}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sign Up
+                {loading ? "Creating account..." : "Sign Up"}
               </button>
             </form>
 
             <div className="my-4 text-center text-gray-500">OR</div>
 
-            <button className="w-full border py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-100">
+            <button
+              disabled={loading}
+              className="w-full border py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-100 disabled:opacity-50"
+            >
               <img
                 src="https://www.svgrepo.com/show/475656/google-color.svg"
                 alt="google"

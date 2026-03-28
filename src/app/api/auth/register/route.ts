@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
   try {
-    connectDB()
+    await connectDB()
     const { name, email, password } = await req.json();
 
     // ✅ 1. Validation
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     if (existingUser) {
       return Response.json(
-        { error: "User already exists" },
+        { message: "User already exists" },
         { status: 400 }
       );
     }
