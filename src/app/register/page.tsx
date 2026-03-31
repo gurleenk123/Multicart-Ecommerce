@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import axios from "axios";
 import { useRouter } from "next/navigation";
@@ -21,40 +21,42 @@ export default function SignupPage() {
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [buttonDisabled, setButtonDisabled] = useState(true);
 
   const roles = ["User", "Vendor", "Admin"];
+
+  useEffect(() => {
+    setButtonDisabled(!isFormValid());
+  }, [formData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
   
-    const updatedForm = {
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
-    };
-  
-    setFormData(updatedForm);
- 
+    }));
   };
 
-  const validate = (data:any) => {
+  const validate = (data: any) => {
     const newErrors = {};
-  
+
     if (!data.name.trim()) {
       newErrors.name = "Name is required";
     }
-  
+
     if (!data.email) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(data.email)) {
       newErrors.email = "Invalid email";
     }
-  
+
     if (!data.password) {
       newErrors.password = "Password is required";
     } else if (data.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
     }
-  
+
     return newErrors;
   };
 
@@ -63,6 +65,7 @@ export default function SignupPage() {
       formData.name.trim() !== "" &&
       formData.email.trim() !== "" &&
       formData.password.trim() !== "" &&
+      formData.password.length > 5 &&
       Object.keys(errors).length === 0
     );
   };
@@ -115,11 +118,10 @@ export default function SignupPage() {
                 <button
                   key={r}
                   onClick={() => setRole(r)}
-                  className={`w-full py-2 rounded-lg border ${
-                    role === r
+                  className={`w-full py-2 rounded-lg border ${role === r
                       ? "bg-blue-500 text-white"
                       : "bg-white hover:bg-gray-100"
-                  }`}
+                    }`}
                 >
                   {r}
                 </button>
@@ -199,8 +201,9 @@ export default function SignupPage() {
               </div>
 
               <button
+
                 type="submit"
-                disabled={loading || !isFormValid()}
+                disabled={loading || buttonDisabled}
                 className="w-full bg-blue-600 text-white py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Creating account..." : "Sign Up"}
